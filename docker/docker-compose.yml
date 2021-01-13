@@ -1,0 +1,35 @@
+version: '3.5'
+
+services:
+    
+    web:
+        build: ./
+        container_name: web
+        networks:
+            - my-net
+        volumes:
+            - ../:/var/www/html/
+        ports:
+            - 80:80
+    
+    db:
+        image: mysql:8.0
+        container_name: db
+        networks:
+            - my-net
+        volumes:
+            - ./db/:/var/lib/mysql/
+        environment:
+            MYSQL_ROOT_PASSWORD: example
+            MYSQL_DATABASE: test
+            
+    adminer:
+        image: adminer
+        container_name: adminer
+        networks:
+            - my-net
+        ports:
+            - 8080:8080
+            
+networks:
+    my-net:
