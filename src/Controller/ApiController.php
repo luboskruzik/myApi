@@ -9,9 +9,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use App\Entity\User;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
-use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
-use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class ApiController extends AbstractController
 {
@@ -44,22 +42,29 @@ class ApiController extends AbstractController
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return new Response($jsonContent);
+        return new Response(
+            $jsonContent,
+            Response::HTTP_OK,
+            ['Content-Type' => 'application-json']
+        );
     }
 
     /**
      * @return Response
-     * @Route ("/api/user",  methods={"GET"})
+     * @Route ("/api/users",  methods={"GET"})
      */
-    public function getUsers()
+    public function getUsers(SerializerInterface $serializer)
     {
         $user = $this->getDoctrine()->getRepository(User::class);
         $users = $user->findAll();
 
-        $serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
         $jsonUsers = $serializer->serialize($users, 'json');
 
-        return new Response($jsonUsers);
+        return new Response(
+            $jsonUsers,
+            Response::HTTP_OK,
+            ['Content-Type' => 'application-json']
+        );
     }
 
 }
