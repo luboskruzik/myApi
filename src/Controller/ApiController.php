@@ -45,7 +45,26 @@ class ApiController extends AbstractController
         return new Response(
             $jsonContent,
             Response::HTTP_OK,
-            ['Content-Type' => 'application-json']
+            [
+                'Content-Type' => 'application-json',
+                'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
+            ]
+        );
+    }
+    /**
+     * @return Response
+     * @Route ("/api/user",  methods={"OPTIONS"})
+     */
+    public function preflight()
+    {
+        return new Response(
+            '{}',
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application-json',
+                'Access-Control-Allow-Headers' => 'Content-Type',
+                'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
+            ]
         );
     }
 
@@ -63,7 +82,10 @@ class ApiController extends AbstractController
         return new Response(
             $jsonUsers,
             Response::HTTP_OK,
-            ['Content-Type' => 'application-json']
+            [
+                'Content-Type' => 'application-json',
+                'Access-Control-Allow-Origin' => 'http://localhost:3355'
+            ]
         );
     }
 
