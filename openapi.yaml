@@ -4,13 +4,14 @@ info:
   description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
   version: 0.1.9
 servers:
-  - url: http://api.example.com/v1
-    description: Optional server description, e.g. Main (production) server
   - url: http://localhost/api
     description: Optional server description, e.g. Internal staging server for testing
+  - url: http://api.example.com/v1
+    description: Optional server description, e.g. Main (production) server
 paths:
   /users:
     get:
+      operationId: getAllUsers
       summary: Returns a list of users.
       description: Optional extended description in CommonMark or HTML.
       responses:
@@ -22,13 +23,67 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/User'
+  /user/{id}:
+    get:
+      operationId: getOneUser
+      summary: Returns a user.
+      responses:
+        '200':
+          description: A JSON object of user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      parameters:
+        - name: id
+          in: path
+          description: Id of a User
+          required: true
+          schema:
+            type: integer
+            format: int64
+    delete:
+      operationId: deleteOneUser
+      summary: Deletes a user.
+      responses:
+        '200':
+          description: A JSON object of deleted user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      parameters:
+        - name: id
+          in: path
+          description: Id of a User
+          required: true
+          schema:
+            type: integer
+            format: int64
   /user:
     post:
-      summary: Returns a user.
+      operationId: saveUser
+      summary: Saves a user.
       description: Optional extended description in CommonMark or HTML.
       responses:
         '201':
-          description: A JSON object of user
+          description: A JSON object of saved user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+      requestBody:
+        content:
+          application/json:
+            schema: 
+                $ref: '#/components/schemas/User'
+        required: true
+    put:
+      operationId: updateUser
+      summary: Updates a user properties.
+      responses:
+        '201':
+          description: A JSON object of updated properties.
           content:
             application/json:
               schema:
@@ -41,6 +96,9 @@ paths:
         required: true
 
 
+
+
+
 components:
   schemas:
     User:
@@ -50,7 +108,6 @@ components:
         id:
           type: integer
           format: int64
-          readOnly: true
         email:
           type: string
         roles:
