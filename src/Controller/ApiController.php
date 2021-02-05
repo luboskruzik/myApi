@@ -9,6 +9,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Entity\ApiToken;
+use App\Repository\ApiTokenRepository;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -17,7 +19,7 @@ class ApiController extends AbstractController
     /**
      * @param Request $request
      * @return Response
-     * @Route ("/api/user", methods={"POST"})
+     * @Route ("/api/user", methods={"POST"}, name="saveUser")
      */
     public function saveUser(Request $request, UserPasswordEncoderInterface $passwordEncoder): Response
     {
@@ -50,7 +52,7 @@ class ApiController extends AbstractController
     /**
      * @param Request $request
      * @return Response
-     * @Route ("/api/user", methods={"PUT"})
+     * @Route ("/api/user", methods={"PUT"}, name="updateUser")
      */
     public function updateUser(Request $request, UserPasswordEncoderInterface $passwordEncoder, UserRepository $userRepository)
     {
@@ -107,7 +109,7 @@ class ApiController extends AbstractController
      * @param UserRepository $user
      * @param SerializerInterface $serializer
      * @return Response
-     * @Route ("/api/users", methods={"GET"})
+     * @Route ("/api/users", methods={"GET"}, name="getAllUsers")
      */
     public function getAllUsers(UserRepository $userRepository, SerializerInterface $serializer)
     {
@@ -127,7 +129,7 @@ class ApiController extends AbstractController
 
     /**
      * @return Response
-     * @Route ("/api/user/{id}", methods={"GET"})
+     * @Route ("/api/user/{id}", methods={"GET"}, name="getOneUser")
      */
     public function getOneUser(UserRepository $userRepository,  SerializerInterface $serializer, $id)
     {
@@ -145,7 +147,7 @@ class ApiController extends AbstractController
     }
 
     /**
-     * @Route ("/api/user/{id}", methods={"DELETE"})
+     * @Route ("/api/user/{id}", methods={"DELETE"}, name="deleteOneUser")
      *
      */
     public function deleteOneUser(UserRepository $userRepository, SerializerInterface $serializer, $id)
@@ -166,6 +168,37 @@ class ApiController extends AbstractController
             ]
         );
 
+    }
+
+    /**
+     * @Route ("/api/login", methods={"POST"}, name="login")
+     *
+     */
+    public function login(ApiTokenRepository $apiTokenRepository)
+    {
+        $user = $this->getUser();
+        $apiToken = $apiTokenRepository->find($user->getId());
+
+        $token = bin2hex(random_bytes(60));
+        $apiToken = new ApiToken();
+        $apiToken->setToken($token);
+        $apiToken->setExpiresAt(new \DateTime('+6 hours'));
+        $apiToken->setUser($this->getUser());
+
+        $entityManager = $this->getDoctrine()->getManager();
+        $entityManager->persist($apiToken);
+        $entityManager->flush();
+
+        $jsonContent = json_encode(['token' => $token]);
+
+        return new Response(
+            $jsonContent,
+            Response::HTTP_CREATED,
+            [
+                'Content-Type' => 'application-json',
+                'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
+            ]
+        );
     }
 
 }
