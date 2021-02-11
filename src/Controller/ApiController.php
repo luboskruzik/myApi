@@ -3,7 +3,7 @@
 
 namespace App\Controller;
 
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,15 +17,36 @@ use Symfony\Component\Serializer\SerializerInterface;
 class ApiController extends AbstractController
 {
     /**
-     * @param Request $request
-     * @return Response
+     * @Route ("/api/users", methods={"OPTIONS"})
+     * @Route ("/api/user", methods={"OPTIONS"})
+     * @Route ("/api/user/{id}", methods={"OPTIONS"})
+     * @Route ("/api/login", methods={"OPTIONS"})
+     */
+    public function preflight(): JsonResponse
+    {
+        return new JsonResponse(
+            '{}',
+            JsonResponse::HTTP_OK,
+            [
+                'Access-Control-Allow-Headers' => 'Authorization, Content-Type',
+                'Access-Control-Allow-Origin' => 'https://editor.swagger.io',
+                'Access-Control-Allow-Methods' => 'PUT, DELETE'
+            ],
+            true
+        );
+    }
+
+    /**
      * @Route ("/api/user", methods={"POST"}, name="saveUser")
      */
-    public function saveUser(Request $request, UserPasswordEncoderInterface $passwordEncoder): Response
+    public function saveUser(Request $request, UserPasswordEncoderInterface $passwordEncoder): JsonResponse
     {
         $jsonContent = $request->getContent();
         $content = json_decode($jsonContent);
 
+        if (!$content || !isset($content->email) || !isset($content->roles) || !isset($content->password)) {
+            throw $this->createNotFoundException('Required data must be provided. Please view the documentation for this API.');
+        }
         $user = new User();
         $user->setEmail($content->email);
         $user->setRoles($content->roles);
@@ -38,28 +59,31 @@ class ApiController extends AbstractController
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return new Response(
+        return new JsonResponse(
             $jsonContent,
-            Response::HTTP_CREATED,
+            JsonResponse::HTTP_CREATED,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
-            ]
+            ],
+            true
         );
     }
 
-
     /**
-     * @param Request $request
-     * @return Response
      * @Route ("/api/user", methods={"PUT"}, name="updateUser")
      */
-    public function updateUser(Request $request, UserPasswordEncoderInterface $passwordEncoder, UserRepository $userRepository)
+    public function updateUser(Request $request, UserPasswordEncoderInterface $passwordEncoder, UserRepository $userRepository): JsonResponse
     {
         $jsonContent = $request->getContent();
         $content = json_decode($jsonContent);
+        if (!$content || !isset($content->id) || (!isset($content->email) && !isset($content->roles) && !isset($content->password))) {
+            throw $this->createNotFoundException('Required data must be provided. Please view the documentation for this API.');
+        }
 
         $user = $userRepository->find($content->id);
+        if (!$user) {
+            throw $this->createNotFoundException('No user found');
+        }
 
         if (isset($content->email)) {
             $user->setEmail($content->email);
@@ -77,72 +101,53 @@ class ApiController extends AbstractController
         $entityManager = $this->getDoctrine()->getManager();
         $entityManager->flush();
 
-        return new Response(
+        return new JsonResponse(
             $jsonContent,
-            Response::HTTP_CREATED,
+            JsonResponse::HTTP_CREATED,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
-            ]
+            ],
+            true
         );
     }
 
     /**
-     * @return Response
-     * @Route ("/api/user/{id}", methods={"OPTIONS"})
-     */
-    public function preflight()
-    {
-        return new Response(
-            '{}',
-            Response::HTTP_OK,
-            [
-                'Content-Type' => 'application-json',
-                'Access-Control-Allow-Headers' => 'Content-Type',
-                'Access-Control-Allow-Origin' => 'https://editor.swagger.io',
-                'Access-Control-Allow-Methods' => 'PUT, DELETE'
-            ]
-        );
-    }
-
-    /**
-     * @param UserRepository $user
-     * @param SerializerInterface $serializer
-     * @return Response
      * @Route ("/api/users", methods={"GET"}, name="getAllUsers")
      */
-    public function getAllUsers(UserRepository $userRepository, SerializerInterface $serializer)
+    public function getAllUsers(UserRepository $userRepository, SerializerInterface $serializer): JsonResponse
     {
         $users = $userRepository->findAll();
 
         $jsonUsers = $serializer->serialize($users, 'json');
 
-        return new Response(
+        return new JsonResponse(
             $jsonUsers,
-            Response::HTTP_OK,
+            JsonResponse::HTTP_OK,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
-            ]
+            ],
+            true
         );
     }
 
     /**
-     * @return Response
      * @Route ("/api/user/{id}", methods={"GET"}, name="getOneUser")
      */
-    public function getOneUser(UserRepository $userRepository,  SerializerInterface $serializer, $id)
+    public function getOneUser(UserRepository $userRepository,  SerializerInterface $serializer, $id): JsonResponse
     {
         $user = $userRepository->find($id);
+        if (!$user) {
+            throw $this->createNotFoundException('No user found');
+        }
         $jsonUser = $serializer->serialize($user, 'json');
 
-        return new Response(
+        return new JsonResponse(
             $jsonUser,
-            Response::HTTP_OK,
+            JsonResponse::HTTP_OK,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
-            ]
+            ],
+            true
         );
     }
 
@@ -150,22 +155,30 @@ class ApiController extends AbstractController
      * @Route ("/api/user/{id}", methods={"DELETE"}, name="deleteOneUser")
      *
      */
-    public function deleteOneUser(UserRepository $userRepository, SerializerInterface $serializer, $id)
+    public function deleteOneUser(ApiTokenRepository $apiTokenRepository, UserRepository $userRepository, SerializerInterface $serializer, $id): JsonResponse
     {
         $user = $userRepository->find($id);
+        if (!$user) {
+            throw $this->createNotFoundException('No user found');
+        }
         $jsonUser = $serializer->serialize($user, 'json');
 
         $entityManager = $this->getDoctrine()->getManager();
+
+        if ($apiToken = $apiTokenRepository->findOneBy(['user' => $user])) {
+            $entityManager->remove($apiToken);
+        }
+
         $entityManager->remove($user);
         $entityManager->flush();
 
-        return new Response(
+        return new JsonResponse(
             $jsonUser,
-            Response::HTTP_OK,
+            JsonResponse::HTTP_OK,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
-            ]
+            ],
+            true
         );
 
     }
@@ -174,28 +187,32 @@ class ApiController extends AbstractController
      * @Route ("/api/login", methods={"POST"}, name="login")
      *
      */
-    public function login(ApiTokenRepository $apiTokenRepository)
+    public function login(ApiTokenRepository $apiTokenRepository): JsonResponse
     {
         $user = $this->getUser();
-        $apiToken = $apiTokenRepository->find($user->getId());
-
+        
         $token = bin2hex(random_bytes(60));
-        $apiToken = new ApiToken();
-        $apiToken->setToken($token);
-        $apiToken->setExpiresAt(new \DateTime('+6 hours'));
-        $apiToken->setUser($this->getUser());
 
         $entityManager = $this->getDoctrine()->getManager();
-        $entityManager->persist($apiToken);
+
+        if ($apiToken = $apiTokenRepository->findOneBy(['user' => $user])) {
+            $apiToken->setToken($token);
+            $apiToken->setExpiresAt(new \DateTime('+6 hours'));
+        } else {
+            $apiToken = new ApiToken();
+            $apiToken->setToken($token);
+            $apiToken->setExpiresAt(new \DateTime('+6 hours'));
+            $apiToken->setUser($user);
+
+            $entityManager->persist($apiToken);
+        }
+
         $entityManager->flush();
 
-        $jsonContent = json_encode(['token' => $token]);
-
-        return new Response(
-            $jsonContent,
-            Response::HTTP_CREATED,
+        return new JsonResponse(
+            ['token' => $token],
+            JsonResponse::HTTP_CREATED,
             [
-                'Content-Type' => 'application-json',
                 'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
             ]
         );

@@ -94,16 +94,35 @@ paths:
             schema: 
                 $ref: '#/components/schemas/User'
         required: true
-
-
-
-
-
+  /login:
+    post:
+      operationId: login
+      summary: Provides an API token.
+      responses:
+        '200':
+          description: A JSON object.
+          content:
+            application/json:
+              schema:
+                properties:
+                  token:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
 components:
   schemas:
     User:
       title: User
-      description: A simple user model.
+      description: User entity.
       properties:
         id:
           type: integer
@@ -117,3 +136,17 @@ components:
         password:
           type: string
       type: object
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      headers:
+        WWW_Authenticate:
+          schema:
+            type: string
+security:
+  - bearerAuth: []
+
