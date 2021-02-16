@@ -8,30 +8,16 @@ use Symfony\Component\HttpClient\HttpClient;
 
 class ApiControllerTest extends TestCase
 {
-/*
-	public function testGetAllUsers()
+	private static $client;
+
+	public static function setUpBeforeClass(): void
 	{
-		$client = HttpClient::create();
-		$response = $client->request(
-			'GET',
-			'http://localhost/api/users',
-			[
-				'headers' => [
-					'Authorization' => 'Bearer 02791f69e6ac7ce47e9667fddfcb6d0b864c158086019ff6260bfd3bfc68edbe2cdadfffd729c6bc48d11d702eace0a2a977dbe40c7472d805196f33',
-					'Accept' => 'application/json'
-				],
-
-			]
-		);
-		var_dump($response->toArray());die();
-
-		$this->assertEquals(1, 1);
+		self::$client = HttpClient::create();
 	}
-*/
+
 	public function testLogin(): string
 	{
-		$client = HttpClient::create();
-		$response = $client->request(
+		$response = self::$client->request(
 			'POST',
 			'http://localhost/api/login',
 			[
@@ -46,10 +32,10 @@ class ApiControllerTest extends TestCase
 			]
 		);
 
-		$arr = $response->toArray();
-		$this->assertArrayHasKey('token', $arr);
+		$content = $response->toArray();
+		$this->assertArrayHasKey('token', $content);
 
-		return $arr['token'];
+		return $content['token'];
 	}
 
 	/**
@@ -57,8 +43,7 @@ class ApiControllerTest extends TestCase
 	*/
 	public function testSaveUser(string $token): string
 	{
-		$client = HttpClient::create();
-		$response = $client->request(
+		$response = self::$client->request(
 			'POST',
 			'http://localhost/api/user',
 			[
@@ -75,20 +60,91 @@ class ApiControllerTest extends TestCase
 			]
 		);
 		
-		$arr = $response->toArray();
-		$this->assertEquals('temp@user.cz', $arr['email']);
-		$this->assertEquals(['guest'], $arr['roles']);
-		$this->assertEquals('abcd', $arr['password']);
-		$this->assertArrayHasKey('id', $arr);
+		$content = $response->toArray();
+		$this->assertEquals('temp@user.cz', $content['email']);
+		$this->assertEquals(['guest'], $content['roles']);
+		$this->assertEquals('abcd', $content['password']);
+		$headers = $response->getHeaders();
 
-		return $arr['id'];
+		return $headers['location'][0];
 	}
 
 	/**
 	* @depends testSaveUser
+	* @depends testLogin
 	*/
-	public function testGetOneUser(string $id): string
+	public function testGetOneUser(string $url, string $token): int
 	{
-		var_dump($id);die();
+		$response = self::$client->request(
+			'GET',
+			$url,
+			[
+				'headers' => [
+					'Accept' => 'application/json',
+					'Authorization' => 'Bearer ' . $token
+				]
+			]
+		);
+		
+		$content = $response->toArray();
+		$this->assertEquals('temp@user.cz', $content['email']);
+		$this->assertEquals(['guest', 'ROLE_USER'], $content['roles']);
+
+		return $content['id'];
 	}
+
+	/**
+	* @depends testSaveUser
+	* @depends testLogin
+	* @depends testGetOneUser
+	*/
+	public function testUpdateUser(string $url, string $token, int $id): void
+	{
+		$response = self::$client->request(
+			'PUT',
+			'http://localhost/api/user',
+			[
+				'headers' => [
+					'Accept' => 'application/json',
+					'Authorization' => 'Bearer ' . $token
+				],
+				'json' => [
+					'id' => $id,
+					'email' => 'temp@user.com',
+					'roles' => ['admin']
+				]
+
+			]
+		);
+
+		$content = $response->toArray();
+		$this->assertEquals('temp@user.com', $content['email']);
+		$this->assertEquals(['admin'], $content['roles']);
+		$this->assertEquals($id, $content['id']);
+	}
+
+	/**
+	* @depends testSaveUser
+	* @depends testLogin
+	* @depends testGetOneUser
+	*/
+	public function testDeleteOneUser(string $url, string $token, int $id): void
+	{
+		$response = self::$client->request(
+			'DELETE',
+			$url,
+			[
+				'headers' => [
+					'Accept' => 'application/json',
+					'Authorization' => 'Bearer ' . $token
+				]
+			]
+		);
+
+		$content = $response->toArray();
+		$this->assertEquals('temp@user.com', $content['email']);
+		$this->assertEquals(['admin', 'ROLE_USER'], $content['roles']);
+		$this->assertEquals($id, $content['id']);
+	}
+
 }

@@ -13,6 +13,7 @@ use App\Entity\ApiToken;
 use App\Repository\ApiTokenRepository;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class ApiController extends AbstractController
 {
@@ -63,7 +64,8 @@ class ApiController extends AbstractController
             $jsonContent,
             JsonResponse::HTTP_CREATED,
             [
-                'Access-Control-Allow-Origin' => 'https://editor.swagger.io'
+                'Access-Control-Allow-Origin' => 'https://editor.swagger.io',
+                'Location' => $this->generateUrl('getOneUser', ['id' => $user->getId()], UrlGeneratorInterface::ABSOLUTE_URL)
             ],
             true
         );
