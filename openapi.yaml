@@ -116,8 +116,10 @@ paths:
               properties:
                 username:
                   type: string
+                  example: test@user.cz
                 password:
                   type: string
+                  example: 1234
 components:
   schemas:
     User:
